@@ -61,7 +61,8 @@ class Funneler(object):
 		start_cols = ['s0.fullVisitorId','s0.visitId']
 
 		if self.segmode:
-			start_cols.append('s0.' + self.seg)
+			for seg in self.seg:
+				start_cols.append('s0.' + seg)
 
 		return self.helper(self.regex_list, '', len(self.regex_list), 0, 's0', start_cols)
 
@@ -73,14 +74,14 @@ class Funneler(object):
 
 			names_index = list(zip(map(str,range(counter)), self.sanitise(self.regex_list)))
 			column_list = list(map((lambda x: 'COUNT(s' + x[0] + '.firstHit) AS ' + x[1] + ', SUM(s' + x[0] + '.exit) AS ' + x[1] + '_exits'), names_index))
-
-			if self.segmode:
-				column_list = ['s0.'+self.seg] + column_list
+			seg_list = map(lambda el: 's0.' + el, self.seg)
+			if self.segmode:	
+				column_list = seg_list + column_list
 
 			column_str = ', '.join(column_list)
 
 			if self.segmode:
-				groupby = 'GROUP BY ' + 's0.'+self.seg
+				groupby = 'GROUP BY ' + ', '.join(seg_list)
 				orderby = 'ORDER BY ' + names_index[-1][1] + ' DESC'
 				new_subquery = ' '.join(['SELECT',column_str,'FROM','('+subquery+')',name, groupby, orderby])
 			else:
@@ -117,8 +118,9 @@ class Funneler(object):
 	# Returns query on table (rather than subquery) - selects rows that match a regex
 	def stage_view(self, regex, counter):
 		if self.segmode:
-			cols = 'fullVisitorId, visitId, ' + self.seg + ', MIN(hits.hitNumber) AS firstHit, MAX(IF(hits.isExit, 1, 0)) as exit'
-			groupby = 'GROUP BY fullVisitorId, visitId, ' + self.seg
+			segs = ', '.join(self.seg)
+			cols = 'fullVisitorId, visitId, ' + segs + ', MIN(hits.hitNumber) AS firstHit, MAX(IF(hits.isExit, 1, 0)) as exit'
+			groupby = 'GROUP BY fullVisitorId, visitId, ' + segs
 		else:
 			cols = 'fullVisitorId, visitId, MIN(hits.hitNumber) AS firstHit, MAX(IF(hits.isExit, 1, 0)) as exit'
 			groupby = 'GROUP BY fullVisitorId, visitId'
